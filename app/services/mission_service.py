@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from app.models.mission import Mission
 from app.schemas.mission import MissionCreateRequest, RouteNode
-from app.services.path_planner import SmartPathPlanner, generate_fake_polygons  # 记得把你的测试函数引进来
+from app.services.path_planner import SmartPathPlanner, generate_fake_polygons, \
+    generate_fake_irregular_polygons  # 记得把你的测试函数引进来
 from app.utils.socket_client import drone_client
 
 
@@ -22,7 +23,8 @@ class MissionService:
 
         if request.simulate:
             # 使用你的随机生成逻辑
-            polygons = generate_fake_polygons(home_lon, home_lat, count_range=(3, 5))
+            polygons = generate_fake_irregular_polygons(home_lon, home_lat, count_range=(3, 5))
+            # polygons = generate_fake_polygons(home_lon, home_lat, count_range=(3, 5))
         else:
             # TODO: 调用 DemAnalyzer 读取 request.dem_path 生成 polygons
             # polygons = DemAnalyzer(request.dem_path).get_polygons()
