@@ -25,4 +25,6 @@
     WebSocket（后端 -> 前端）：推送无人机实时状态、位置信息。
     Raw TCP Socket（后端 Win <-> 无人机 Lin）：底层的字节流通信。
 
+## 迭代:使用飞控的任务上传模式实现精准的,矩形轨迹
+
 ### 考虑使用 postGIS 函数实现 wait_until_arrive() 方法
