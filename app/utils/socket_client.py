@@ -4,13 +4,16 @@ import threading
 import time
 import asyncio
 import logging
-from app.services.websocket_manager import ws_manager  # 引入
+from app.services.websocket_manager import ws_manager
+from typing import Callable, Optional
 
 logger = logging.getLogger("uvicorn")
 
 
 class DroneSocketClient:
     _instance = None
+    # 增加一个回调函数槽
+    on_mission_finish_callback: Optional[Callable] = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -115,14 +118,11 @@ class DroneSocketClient:
             # payload 结构: { "type": "checkpoint_detected", "message": "..." }
             asyncio.run_coroutine_threadsafe(ws_manager.broadcast(payload), self.main_loop)
 
-    # def _get_loop(self):
-    #     """获取当前的事件循环，以便在线程中调用 async 函数"""
-    #     try:
-    #         loop = asyncio.get_running_loop()
-    #     except RuntimeError:
-    #         loop = asyncio.new_event_loop()
-    #         asyncio.set_event_loop(loop)
-    #     return loop
+        elif msg_type == "mission_finished":
+            logger.info("🎉 收到 Lin 端任务完成信号")
+            if self.on_mission_finish_callback and self.main_loop:
+                # 在主循环中执行 Service 层的回调
+                asyncio.run_coroutine_threadsafe(self.on_mission_finish_callback(), self.main_loop)
 
     def send_mission(self, route_nodes: list):
         """发送航线数据给 Lin"""
@@ -162,6 +162,9 @@ class DroneSocketClient:
         self.running = False
         if self.socket:
             self.socket.close()
+
+    def set_finish_callback(self, callback: Callable):
+        self.on_mission_finish_callback = callback
 
 
 # 单例对象

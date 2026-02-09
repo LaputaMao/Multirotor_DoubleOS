@@ -38,3 +38,20 @@ class MissionResponse(BaseModel):
 class MissionCreateResult(BaseModel):
     mission: MissionResponse
     status: str
+
+
+class MissionListItem(BaseModel):
+    id: int
+    name: str
+    location: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+    finished_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class MissionListResponse(BaseModel):
+    total: int
+    items: List[MissionListItem]

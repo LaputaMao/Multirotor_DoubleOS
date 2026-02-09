@@ -26,6 +26,9 @@ async def lifespan(app: FastAPI):
     drone_client.init_client(JETSON_IP, DATA_PORT)
     # 在这里实例化，确保只执行一次
     from app.utils.video_stream import VideoReceiver
+    # 🆕 注册回调
+    from app.services.mission_service import MissionService
+    drone_client.set_finish_callback(MissionService.mark_mission_finished)
     video_stream.global_video_receiver = VideoReceiver(listen_port=5555)
 
     yield

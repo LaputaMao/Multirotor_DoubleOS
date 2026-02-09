@@ -1,4 +1,4 @@
-from app.schemas.mission import MissionCreateRequest, MissionCreateResult
+from app.schemas.mission import MissionCreateRequest, MissionCreateResult, MissionListResponse
 from app.services.mission_service import MissionService
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,3 +93,15 @@ async def video_feed():
         generate_mjpeg_stream(),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
+
+
+@router.get("/list", response_model=MissionListResponse)
+async def list_missions(
+        page: int = 1,
+        size: int = 10,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    分页获取历史任务列表
+    """
+    return await MissionService.get_mission_list(db, page, size)

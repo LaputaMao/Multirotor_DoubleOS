@@ -6,6 +6,9 @@ from app.services.path_planner import SmartPathPlanner, generate_fake_polygons, 
     generate_fake_irregular_polygons  # 记得把你的测试函数引进来
 from app.utils.socket_client import drone_client
 
+# 增加一个全局变量记录当前运行的任务 ID
+current_running_mission_id = None
+
 
 class MissionService:
 
@@ -52,6 +55,9 @@ class MissionService:
         await db.commit()
         await db.refresh(new_mission)
 
+        global current_running_mission_id
+        current_running_mission_id = new_mission.id  # 👈 记录 ID
+
         # 4. 发送给 Lin 后端 (通过 Socket)
         send_success = drone_client.send_mission(route_nodes)
 
@@ -61,3 +67,57 @@ class MissionService:
             "mission": new_mission,
             "status": status_msg
         }
+
+    @staticmethod
+    async def mark_mission_finished():
+        """Socket Client 调用的回调"""
+        global current_running_mission_id
+        if not current_running_mission_id:
+            return
+
+        # 获取一个新的 DB Session (因为这是一个异步回调，不在原本的 Request 作用域内)
+        # 需要自己手动维护 Session
+        from app.core.database import AsyncSessionLocal
+        from datetime import datetime
+        from app.models.mission import Mission
+        from sqlalchemy import update
+
+        async with AsyncSessionLocal() as session:
+            try:
+                stmt = (
+                    update(Mission)
+                    .where(Mission.id == current_running_mission_id)
+                    .values(finished_at=datetime.utcnow(), status="completed")
+                )
+                await session.execute(stmt)
+                await session.commit()
+                print(f"✅ Mission {current_running_mission_id} marked as FINISHED.")
+            except Exception as e:
+                print(f"❌ Update mission failed: {e}")
+            finally:
+                current_running_mission_id = None
+
+    @staticmethod
+    async def get_mission_list(db: AsyncSession, page: int, size: int):
+        from app.models.mission import Mission
+        from sqlalchemy import select, func
+
+        # 计算 offset
+        offset = (page - 1) * size
+
+        # 查询总数
+        count_stmt = select(func.count(Mission.id))
+        total_res = await db.execute(count_stmt)
+        total = total_res.scalar_one()
+
+        # 查询列表 (倒序排列，最新的在前)
+        stmt = (
+            select(Mission)
+            .order_by(Mission.created_at.desc())
+            .offset(offset)
+            .limit(size)
+        )
+        result = await db.execute(stmt)
+        items = result.scalars().all()
+
+        return {"total": total, "items": items}
